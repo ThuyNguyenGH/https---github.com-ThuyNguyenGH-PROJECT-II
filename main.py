@@ -26,7 +26,7 @@ df['hour'] = df['date'].dt.hour
 df['day'] = df['date'].dt.day
 df['weekday'] = df['date'].dt.weekday
 
-# Bỏ dòng cuối vì nó không có nhãn (NaN ở 'future_close')
+
 df = df.dropna()
 
 # Chọn đặc trưng (feature)
