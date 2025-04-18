@@ -1,37 +1,44 @@
 import pandas as pd
 from pathlib import Path
 
+# Đường dẫn đến file dữ liệu
 data_path = Path("D:/PROJECT_II/PROJECT-II/freqtrade/user_data/data/binance/BTC_USDT-1h.feather")
 
-# Đọc dữ liệu .feather
+# Đọc filefile
 df = pd.read_feather(data_path)
 
-# Hiển thị 5 dòng đầu tiên
+# Đọc 5 dòng đầu tiên
 print(df.head())
 
-# Kiểm tra thông tin về các cột và kiểu dữ liệu
+# Kiểm tra kiểu dữ liệu và thông tin các cột
 print(df.info())
 
-# Kiểm tra các giá trị thống kê như mean, min, max, std...
 print(df.describe())
 
-# Kiểm tra các giá trị thiếu trong dữ liệu
-print(df.isnull().sum())
+#Chuyển timestamp sang định dạng datetime
+df['date'] = pd.to_datetime(df['date'])
+df.set_index('date', inplace=True)
+print(df.index)
 
-# Tạo nhãn (label) là giá đóng cửa tiếp theo
-df['future_close'] = df['close'].shift(-1)
+# Tạo cột target là giá đóng cửa của giờ kế tiếp
+df['target'] = df['close'].shift(-1)
 
-# Xử lý datetime thành đặc trưng
-df['hour'] = df['date'].dt.hour
-df['day'] = df['date'].dt.day
-df['weekday'] = df['date'].dt.weekday
+# Xoá dòng cuối vì không có target
+df.dropna(inplace=True)
 
+print(df[['close', 'target']].head())
 
-df = df.dropna()
+#CHIA TRAIN-TESTTEST
+from sklearn.model_selection import train_test_split
 
-# Chọn đặc trưng (feature)
-features = ['open', 'high', 'low', 'close', 'volume', 'hour', 'day', 'weekday']
+# Chọn các feature (có thể mở rộng sau này)
+features = ['open', 'high', 'low', 'close', 'volume']
+
 X = df[features]
-y = df['future_close']
-print(X.head())
-print(y.head())
+y = df['target']
+
+# Chia tập train/test: 80% train, 20% test
+X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, shuffle=False)
+
+print(X_train.shape, X_test.shape)
+
