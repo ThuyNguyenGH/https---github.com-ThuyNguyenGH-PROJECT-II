@@ -1,15 +1,16 @@
 import pandas as pd
 from pathlib import Path
+import numpy as np
+import matplotlib.pyplot as plt
+from sklearn.model_selection import train_test_split
+from sklearn.ensemble import RandomForestRegressor
+from sklearn.metrics import mean_absolute_error, mean_squared_error, r2_score
+import xgboost as xgb
+from sklearn.model_selection import GridSearchCV
 
 # Đường dẫn đến file dữ liệu
 data_path = Path("D:/PROJECT_II/PROJECT-II/freqtrade/user_data/data/binance/BTC_USDT-1h.feather")
 df = pd.read_feather(data_path)
-
-# Đọc 5 dòng đầu tiên
-print(df.head())
-
-import numpy as np
-from sklearn.model_selection import train_test_split
 
 # Chuyển cột 'date' thành kiểu datetime và đặt làm chỉ mục
 df['date'] = pd.to_datetime(df['date'])
@@ -35,15 +36,9 @@ X_train, X_test, y_train, y_test = train_test_split(
     features, target, test_size=0.2, shuffle=False
 )
 
-# In ra kích thước
-print("Train:", X_train.shape, "Test:", X_test.shape)
-
-from sklearn.ensemble import RandomForestRegressor
-from sklearn.model_selection import GridSearchCV
-from sklearn.metrics import mean_absolute_error, mean_squared_error, r2_score
-import numpy as np
-import matplotlib.pyplot as plt
-
+# -----------------------------------------------
+# Huấn luyện mô hình Random Forest
+# -----------------------------------------------
 # Grid Search để tìm hyperparameters tốt nhất
 param_grid = {
     'n_estimators': [100, 200],
@@ -52,7 +47,7 @@ param_grid = {
 }
 
 rf = RandomForestRegressor(random_state=42)
-grid_search = GridSearchCV(
+grid_search_rf = GridSearchCV(
     estimator=rf,
     param_grid=param_grid,
     cv=3,
@@ -62,41 +57,19 @@ grid_search = GridSearchCV(
 )
 
 # Huấn luyện mô hình với tuning hyperparameters
-grid_search.fit(X_train, y_train)
-best_model = grid_search.best_estimator_
+grid_search_rf.fit(X_train, y_train)
+best_rf_model = grid_search_rf.best_estimator_
 
-# In ra thông số tốt nhất
-print("Best Parameters:", grid_search.best_params_)
+# Dự đoán và đánh giá cho Random Forest
+y_pred_rf = best_rf_model.predict(X_test)
 
-# Dự đoán và đánh giá
-y_pred = best_model.predict(X_test)
+mae_rf = mean_absolute_error(y_test, y_pred_rf)
+rmse_rf = np.sqrt(mean_squared_error(y_test, y_pred_rf))
+r2_rf = r2_score(y_test, y_pred_rf)
 
-mae = mean_absolute_error(y_test, y_pred)
-rmse = np.sqrt(mean_squared_error(y_test, y_pred))
-r2 = r2_score(y_test, y_pred)
-
-print(f"MAE: {mae:.2f}")
-print(f"RMSE: {rmse:.2f}")
-print(f"R²: {r2:.4f}")
-
-
-# Vẽ biểu đồ so sánh với 100 điểm đầu tiên
-plt.figure(figsize=(12, 6))
-plt.plot(y_test.values[:100], label='Giá thực tế')
-plt.plot(y_pred[:100], label='Giá dự đoán')
-plt.title("Random Forest - Giá thực tế vs Dự đoán (100 giá trị đầu)")
-plt.xlabel("Thời gian")
-plt.ylabel("Giá BTC")
-plt.legend()
-plt.tight_layout()
-plt.show()
-
-#xgboostxgboost
-import xgboost as xgb
-from sklearn.model_selection import GridSearchCV
-from sklearn.metrics import mean_absolute_error, mean_squared_error, r2_score
-
-# Khởi tạo mô hình XGBoost
+# -----------------------------------------------
+# Huấn luyện mô hình XGBoost
+# -----------------------------------------------
 xgb_model = xgb.XGBRegressor(random_state=42)
 
 # Grid Search để tìm hyperparameters tốt nhất cho XGBoost
@@ -107,7 +80,6 @@ param_grid_xgb = {
     'subsample': [0.8, 0.9, 1.0]
 }
 
-# GridSearchCV để tìm hyperparameters tốt nhất
 grid_search_xgb = GridSearchCV(
     estimator=xgb_model,
     param_grid=param_grid_xgb,
@@ -121,28 +93,50 @@ grid_search_xgb = GridSearchCV(
 grid_search_xgb.fit(X_train, y_train)
 best_xgb_model = grid_search_xgb.best_estimator_
 
-# In ra thông số tốt nhất
-print("Best Parameters for XGBoost:", grid_search_xgb.best_params_)
-
-# Dự đoán giá trị
+# Dự đoán và đánh giá cho XGBoost
 y_pred_xgb = best_xgb_model.predict(X_test)
 
-# Tính toán các chỉ số đánh giá
 mae_xgb = mean_absolute_error(y_test, y_pred_xgb)
 rmse_xgb = np.sqrt(mean_squared_error(y_test, y_pred_xgb))
 r2_xgb = r2_score(y_test, y_pred_xgb)
 
-print(f"MAE (XGBoost): {mae_xgb:.2f}")
-print(f"RMSE (XGBoost): {rmse_xgb:.2f}")
-print(f"R² (XGBoost): {r2_xgb:.4f}")
+# -----------------------------------------------
+# Tạo bảng chứa kết quả đánh giá
+# -----------------------------------------------
+results = pd.DataFrame({
+    'Model': ['Random Forest', 'XGBoost'],
+    'MAE': [mae_rf, mae_xgb],
+    'RMSE': [rmse_rf, rmse_xgb],
+    'R²': [r2_rf, r2_xgb]
+})
+print(results)
 
-# Vẽ biểu đồ so sánh với 100 điểm đầu tiên
-plt.figure(figsize=(12, 6))
-plt.plot(y_test.values[:100], label='Giá thực tế')
-plt.plot(y_pred_xgb[:100], label='Giá dự đoán')
-plt.title("XGBoost - Giá thực tế vs Dự đoán (100 giờ đầu)")
-plt.xlabel("Thời gian")
-plt.ylabel("Giá BTC")
-plt.legend()
+# Dữ liệu cho biểu đồ
+metrics = ['MAE', 'RMSE', 'R²']
+rf_scores = [mae_rf, rmse_rf, r2_rf]
+xgb_scores = [mae_xgb, rmse_xgb, r2_xgb]
+models = ['Random Forest', 'XGBoost']
+colors = ['lightblue', 'pink']
+
+# Vẽ 3 biểu đồ
+fig, axes = plt.subplots(1, 3, figsize=(15, 5))
+
+for i, metric in enumerate(metrics):
+    ax = axes[i]
+    values = [rf_scores[i], xgb_scores[i]]
+    bars = ax.bar(models, values, color=colors)
+
+    ax.set_title(metric)
+    ax.set_ylim(0, max(values) * 1.15)
+
+    # Hiển thị giá trị trên đầu cột
+    for bar in bars:
+        height = bar.get_height()
+        ax.annotate(f'{height:.2f}',
+                    xy=(bar.get_x() + bar.get_width() / 2, height *0.98),
+                    xytext=(0, -12),
+                    textcoords="offset points",
+                    ha='center', va='bottom')
+
 plt.tight_layout()
 plt.show()
