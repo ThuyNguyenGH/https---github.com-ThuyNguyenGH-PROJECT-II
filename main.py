@@ -146,6 +146,3 @@ plt.ylabel("Giá BTC")
 plt.legend()
 plt.tight_layout()
 plt.show()
-
-
-
