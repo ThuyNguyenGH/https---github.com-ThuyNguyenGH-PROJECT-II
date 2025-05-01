@@ -211,7 +211,6 @@ models = ['Random Forest', 'XGBoost', 'KNN', 'Decision Tree', 'SVR']
 colors = ['lightblue', 'pink', 'lightgreen', 'orange', 'violet']
 
 
-# Tạo DataFrame từ kết quả metrics
 results_df = results
 
 
