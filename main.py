@@ -191,7 +191,7 @@ results = pd.DataFrame({
 print(results)
 
 
-# Dữ liệu cho biểu đồ
+# Dữ liệu các chỉ số
 metrics = ['MAE', 'RMSE', 'R²']
 scores = {
     'MAE': [mae_rf, mae_xgb, mae_knn, mae_dt, mae_svr],
@@ -200,6 +200,14 @@ scores = {
 }
 models = ['Random Forest', 'XGBoost', 'KNN', 'Decision Tree', 'SVR']
 colors = ['lightblue', 'pink', 'lightgreen', 'orange', 'violet']
+
+
+# Tạo DataFrame từ kết quả metrics
+results_df = results
+
+# Hiển thị bảng so sánh
+print(results_df)
+
 
 # Vẽ 3 biểu đồ
 fig, axes = plt.subplots(1, 3, figsize=(18, 5))
@@ -232,7 +240,7 @@ y_pred_svr      # Dự đoán từ SVR
 
 import matplotlib.pyplot as plt
 
-# Vẽ dự đoán 100 điểm đầu tiên của mỗi mô hình
+# Vẽ dự đoán 100 điểm đầu tiên của 5 mô hình
 plt.figure(figsize=(15, 6))
 plt.plot(y_test[:100].values, label='Thực tế', color='black', linewidth=2)
 
@@ -243,6 +251,19 @@ plt.plot(y_pred_dt[:100], label='Decision Tree', linestyle='--')
 plt.plot(y_pred_svr[:100], label='SVR', linestyle='--')
 
 plt.title('So sánh dự đoán của các mô hình (100 giờ đầu tiên)', fontsize=14)
+plt.xlabel('Thời gian (index)', fontsize=12)
+plt.ylabel('Giá BTC-USDT', fontsize=12)
+plt.legend()
+plt.grid(True)
+plt.tight_layout()
+plt.show()
+
+
+# Bieu do so sanh Gia Thực te với RF
+plt.figure(figsize=(13, 4))
+plt.plot(y_test[:100].values, label='Thực tế', color='black', linewidth=2)
+plt.plot(y_pred_rf[:100], label='Random Forest', linestyle='--')
+plt.title('So sánh dự đoán của mô hình Random Forest với Giá Thực tế (100 giờ đầu tiên)', fontsize=13)
 plt.xlabel('Thời gian (index)', fontsize=12)
 plt.ylabel('Giá BTC-USDT', fontsize=12)
 plt.legend()
