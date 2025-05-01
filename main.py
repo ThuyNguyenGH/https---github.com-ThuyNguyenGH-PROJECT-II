@@ -16,6 +16,8 @@ from sklearn.preprocessing import StandardScaler
 data_path = Path("D:/PROJECT_II/PROJECT-II/freqtrade/user_data/data/binance/BTC_USDT-1h.feather")
 df = pd.read_feather(data_path)
 
+print(df.head())
+
 # Chuyển cột 'date' thành kiểu datetime và đặt làm chỉ mục
 df['date'] = pd.to_datetime(df['date'])
 df.set_index('date', inplace=True)
@@ -44,16 +46,16 @@ X_train, X_test, y_train, y_test = train_test_split(
 # Huấn luyện mô hình Random Forest
 # Grid Search để tìm hyperparameters tốt nhất
 param_grid = {
-    'n_estimators': [300, 600],
+    'n_estimators': [100, 300, 600],
     'max_depth': [5, 10, 100],
-    'min_samples_split': [2, 5]
+    'min_samples_split': [2, 5, 10]
 }
 
 rf = RandomForestRegressor(random_state=42)
 grid_search_rf = GridSearchCV(
     estimator=rf,
     param_grid=param_grid,
-    cv=3,
+    cv=5,
     scoring='neg_mean_absolute_error',
     n_jobs=-1,
     verbose=1
@@ -85,7 +87,7 @@ param_grid_xgb = {
 grid_search_xgb = GridSearchCV(
     estimator=xgb_model,
     param_grid=param_grid_xgb,
-    cv=3,
+    cv=5,
     scoring='neg_mean_absolute_error',
     n_jobs=-1,
     verbose=1
@@ -104,6 +106,10 @@ r2_xgb = r2_score(y_test, y_pred_xgb)
 
 
 # KNN Regressor
+scaler_knn = StandardScaler()
+X_train_knn = scaler_knn.fit_transform(X_train)
+X_test_knn = scaler_knn.transform(X_test)
+
 knn = KNeighborsRegressor()
 param_grid_knn = {
     'n_neighbors': [1, 50]
@@ -111,15 +117,15 @@ param_grid_knn = {
 grid_search_knn = GridSearchCV(
     estimator=knn,
     param_grid=param_grid_knn,
-    cv=3,
+    cv=5,
     scoring='neg_mean_absolute_error',
     n_jobs=-1,
     verbose=1
 )
-grid_search_knn.fit(X_train, y_train)
+grid_search_knn.fit(X_train_knn, y_train)
 best_knn_model = grid_search_knn.best_estimator_
 
-y_pred_knn = best_knn_model.predict(X_test)
+y_pred_knn = best_knn_model.predict(X_test_knn)
 mae_knn = mean_absolute_error(y_test, y_pred_knn)
 rmse_knn = np.sqrt(mean_squared_error(y_test, y_pred_knn))
 r2_knn = r2_score(y_test, y_pred_knn)
@@ -134,7 +140,7 @@ param_grid_dt = {
 grid_search_dt = GridSearchCV(
     estimator=dt,
     param_grid=param_grid_dt,
-    cv=3,
+    cv=5,
     scoring='neg_mean_absolute_error',
     n_jobs=-1,
     verbose=1
@@ -150,11 +156,9 @@ r2_dt = r2_score(y_test, y_pred_dt)
 
 # SVR Regressor
 # Khởi tạo StandardScaler
-scaler = StandardScaler()
-
-# Chuẩn hóa dữ liệu train và test
-X_train_scaled = scaler.fit_transform(X_train)
-X_test_scaled = scaler.transform(X_test)
+scaler_svr = StandardScaler()
+X_train_scaled = scaler_svr.fit_transform(X_train)
+X_test_scaled = scaler_svr.transform(X_test)
 
 # Huấn luyện
 svr = SVR()
@@ -166,7 +170,7 @@ param_grid_svr = {
 grid_search_svr = GridSearchCV(
     estimator=svr,
     param_grid=param_grid_svr,
-    cv=3,
+    cv=5,
     scoring='neg_mean_absolute_error',
     n_jobs=-1,
     verbose=1
@@ -180,6 +184,11 @@ mae_svr = mean_absolute_error(y_test, y_pred_svr)
 rmse_svr = np.sqrt(mean_squared_error(y_test, y_pred_svr))
 r2_svr = r2_score(y_test, y_pred_svr)
 
+print("Best parameters for Random Forest:", grid_search_rf.best_params_)
+print("Best parameters for XGBoost:", grid_search_xgb.best_params_)
+print("Best parameters for KNN:", grid_search_knn.best_params_)
+print("Best parameters for Decision Tree:", grid_search_dt.best_params_)
+print("Best parameters for SVR:", grid_search_svr.best_params_)
 
 # kết quả đánh giá
 results = pd.DataFrame({
@@ -205,8 +214,6 @@ colors = ['lightblue', 'pink', 'lightgreen', 'orange', 'violet']
 # Tạo DataFrame từ kết quả metrics
 results_df = results
 
-# Hiển thị bảng so sánh
-print(results_df)
 
 
 # Vẽ 3 biểu đồ
@@ -240,7 +247,7 @@ y_pred_svr      # Dự đoán từ SVR
 
 import matplotlib.pyplot as plt
 
-# Vẽ dự đoán 100 điểm đầu tiên của 5 mô hình
+# Vẽ dự đoán 100h đầu tiên của 5 mô hình
 plt.figure(figsize=(15, 6))
 plt.plot(y_test[:100].values, label='Thực tế', color='black', linewidth=2)
 
