@@ -11,7 +11,10 @@ from sklearn.neighbors import KNeighborsRegressor
 from sklearn.tree import DecisionTreeRegressor
 from sklearn.svm import SVR
 from sklearn.preprocessing import StandardScaler
+from sklearn.model_selection import TimeSeriesSplit
 import joblib
+
+tscv = TimeSeriesSplit(n_splits=3)
 
 # Đường dẫn đến file dữ liệu
 data_path = Path("D:/PROJECT_II/freqtrade/user_data/data/binance/BTC_USDT-1h.feather")
@@ -24,9 +27,9 @@ print(df.head())  # In 5 dòng đầu của dữ liệu
 df['date'] = pd.to_datetime(df['date'])
 df.set_index('date', inplace=True)
 
-# Lọc dữ liệu trong khoảng thời gian từ 1/9/2023 đến 1/5/2024
-start_date = '2023-09-01'
-end_date = '2024-05-01'
+# Lọc dữ liệu trong khoảng thời gian từ
+start_date = '2023-11-01'
+end_date = '2024-06-01'
 
 df = df[(df.index >= start_date) & (df.index <= end_date)]
 
@@ -39,30 +42,84 @@ print(df.tail())
 df['target'] = df['close'].shift(-1)
 
 # Feature Engineering - tạo các đặc trưng kỹ thuật
-df['ma_3'] = df['close'].rolling(window=3).mean()    # Trung bình 3 giờ
-df['ma_6'] = df['close'].rolling(window=6).mean()    # Trung bình 6 giờ
-df['std_3'] = df['close'].rolling(window=3).std()    # Độ lệch chuẩn 3 giờ
+df['ma_3_open'] = df['open'].rolling(window=3).mean()
+df['ma_3_high'] = df['high'].rolling(window=3).mean()
+df['ma_3_low'] = df['low'].rolling(window=3).mean()
+df['ma_3_close'] = df['close'].rolling(window=3).mean()
+
+df['ma_6_open'] = df['open'].rolling(window=6).mean()
+df['ma_6_high'] = df['high'].rolling(window=6).mean()
+df['ma_6_low'] = df['low'].rolling(window=6).mean()
+df['ma_6_close'] = df['close'].rolling(window=6).mean()
+
+df['std_3_open'] = df['open'].rolling(window=3).std()
+df['std_3_high'] = df['high'].rolling(window=3).std()
+df['std_3_low'] = df['low'].rolling(window=3).std()
+df['std_3_close'] = df['close'].rolling(window=3).std()
 
 # EMA
-df['ema_10'] = df['close'].ewm(span=10, adjust=False).mean()
+df['ema_10_open'] = df['open'].ewm(span=10, adjust=False).mean()
+df['ema_10_high'] = df['high'].ewm(span=10, adjust=False).mean()
+df['ema_10_low'] = df['low'].ewm(span=10, adjust=False).mean()
+df['ema_10_close'] = df['close'].ewm(span=10, adjust=False).mean()
 
-# RSI
-delta = df['close'].diff()
-gain = (delta.where(delta > 0, 0)).rolling(14).mean()
-loss = (-delta.where(delta < 0, 0)).rolling(14).mean()
-rs = gain / loss
-df['rsi_14'] = 100 - (100 / (1 + rs))
+# Tính RSI cho close
+delta_close = df['close'].diff()
+gain_close = (delta_close.where(delta_close > 0, 0)).rolling(14).mean()
+loss_close = (-delta_close.where(delta_close < 0, 0)).rolling(14).mean()
+rs_close = gain_close / loss_close
+df['rsi_14_close'] = 100 - (100 / (1 + rs_close))
+
+# Tính RSI cho open
+delta_open = df['open'].diff()
+gain_open = (delta_open.where(delta_open > 0, 0)).rolling(14).mean()
+loss_open = (-delta_open.where(delta_open < 0, 0)).rolling(14).mean()
+rs_open = gain_open / loss_open
+df['rsi_14_open'] = 100 - (100 / (1 + rs_open))
+
+# Tính RSI cho high
+delta_high = df['high'].diff()
+gain_high = (delta_high.where(delta_high > 0, 0)).rolling(14).mean()
+loss_high = (-delta_high.where(delta_high < 0, 0)).rolling(14).mean()
+rs_high = gain_high / loss_high
+df['rsi_14_high'] = 100 - (100 / (1 + rs_high))
+
+# Tính RSI cho low
+delta_low = df['low'].diff()
+gain_low = (delta_low.where(delta_low > 0, 0)).rolling(14).mean()
+loss_low = (-delta_low.where(delta_low < 0, 0)).rolling(14).mean()
+rs_low = gain_low / loss_low
+df['rsi_14_low'] = 100 - (100 / (1 + rs_low))
+
 
 # MACD
-ema_12 = df['close'].ewm(span=12, adjust=False).mean()
-ema_26 = df['close'].ewm(span=26, adjust=False).mean()
-df['macd'] = ema_12 - ema_26
+ema_12_open = df['open'].ewm(span=12, adjust=False).mean()
+ema_26_open = df['open'].ewm(span=26, adjust=False).mean()
+df['macd_open'] = ema_12_open - ema_26_open
+
+ema_12_high = df['high'].ewm(span=12, adjust=False).mean()
+ema_26_high = df['high'].ewm(span=26, adjust=False).mean()
+df['macd_high'] = ema_12_high - ema_26_high
+
+ema_12_low = df['low'].ewm(span=12, adjust=False).mean()
+ema_26_low = df['low'].ewm(span=26, adjust=False).mean()
+df['macd_low'] = ema_12_low - ema_26_low
+
+ema_12_close = df['close'].ewm(span=12, adjust=False).mean()
+ema_26_close = df['close'].ewm(span=26, adjust=False).mean()
+df['macd_close'] = ema_12_close - ema_26_close
 
 # Loại bỏ các dòng có giá trị NaN
 df.dropna(inplace=True)
 
 # Chọn các đặc trưng đầu vào (features) và đầu ra (target)
-features = df[['close', 'volume', 'ma_3', 'ma_6', 'std_3', 'ema_10', 'rsi_14', 'macd']]
+features = df[['open', 'high', 'low', 'close', 'volume', 
+               'ma_3_open', 'ma_3_high', 'ma_3_low', 'ma_3_close',
+               'ma_6_open', 'ma_6_high', 'ma_6_low', 'ma_6_close',
+               'std_3_open', 'std_3_high', 'std_3_low', 'std_3_close',
+               'ema_10_open', 'ema_10_high', 'ema_10_low', 'ema_10_close',
+               'rsi_14_open', 'rsi_14_high', 'rsi_14_low',
+               'macd_close', 'macd_open', 'macd_high', 'macd_low']]
 target = df['target']
 
 # Chia dữ liệu thành train và test
@@ -85,7 +142,7 @@ rf = RandomForestRegressor(random_state=42)
 grid_search_rf = GridSearchCV(
     estimator=rf,
     param_grid=param_grid,
-    cv=5,
+    cv=tscv,
     scoring='neg_mean_absolute_error',
     n_jobs=-1,
     verbose=1
@@ -96,7 +153,10 @@ best_rf_model = grid_search_rf.best_estimator_
 
 # Dự đoán và đánh giá cho Random Forest
 y_pred_rf = best_rf_model.predict(X_test)
-print("Dự đoán Random Forest: ", y_pred_rf)
+
+rf_predictions = pd.DataFrame({'Date': X_test.index, 'Prediction': y_pred_rf})
+print("Dự đoán Random Forest:")
+print(rf_predictions)
 
 mae_rf = mean_absolute_error(y_test, y_pred_rf)
 rmse_rf = np.sqrt(mean_squared_error(y_test, y_pred_rf))
@@ -116,7 +176,7 @@ param_grid_xgb = {
 grid_search_xgb = GridSearchCV(
     estimator=xgb_model,
     param_grid=param_grid_xgb,
-    cv=5,
+    cv=tscv,
     scoring='neg_mean_absolute_error',
     n_jobs=-1,
     verbose=1
@@ -128,7 +188,10 @@ best_xgb_model = grid_search_xgb.best_estimator_
 
 # Dự đoán và đánh giá cho XGBoost
 y_pred_xgb = best_xgb_model.predict(X_test)
-print("Dự đoán XGBoost: ", y_pred_xgb)
+
+xgb_predictions = pd.DataFrame({'Date': X_test.index, 'Prediction': y_pred_xgb})
+print("Dự đoán XGBoost:")
+print(xgb_predictions)
 
 mae_xgb = mean_absolute_error(y_test, y_pred_xgb)
 rmse_xgb = np.sqrt(mean_squared_error(y_test, y_pred_xgb))
@@ -146,7 +209,7 @@ param_grid_knn = {
 grid_search_knn = GridSearchCV(
     estimator=knn,
     param_grid=param_grid_knn,
-    cv=5,
+    cv=tscv,
     scoring='neg_mean_absolute_error',
     n_jobs=-1,
     verbose=1
@@ -155,7 +218,10 @@ grid_search_knn.fit(X_train_knn, y_train)
 best_knn_model = grid_search_knn.best_estimator_
 
 y_pred_knn = best_knn_model.predict(X_test_knn)
-print("Dự đoán KNN: ", y_pred_knn)
+
+knn_predictions = pd.DataFrame({'Date': X_test.index, 'Prediction': y_pred_knn})
+print("Dự đoán KNN:")
+print(knn_predictions)
 
 mae_knn = mean_absolute_error(y_test, y_pred_knn)
 rmse_knn = np.sqrt(mean_squared_error(y_test, y_pred_knn))
@@ -170,7 +236,7 @@ param_grid_dt = {
 grid_search_dt = GridSearchCV(
     estimator=dt,
     param_grid=param_grid_dt,
-    cv=5,
+    cv=tscv,
     scoring='neg_mean_absolute_error',
     n_jobs=-1,
     verbose=1
@@ -179,7 +245,10 @@ grid_search_dt.fit(X_train, y_train)
 best_dt_model = grid_search_dt.best_estimator_
 
 y_pred_dt = best_dt_model.predict(X_test)
-print("Dự đoán Decision Tree: ", y_pred_dt)
+
+dt_predictions = pd.DataFrame({'Date': X_test.index, 'Prediction': y_pred_dt})
+print("Dự đoán Decision Tree:")
+print(dt_predictions)
 
 mae_dt = mean_absolute_error(y_test, y_pred_dt)
 rmse_dt = np.sqrt(mean_squared_error(y_test, y_pred_dt))
@@ -201,7 +270,7 @@ param_grid_svr = {
 grid_search_svr = GridSearchCV(
     estimator=svr,
     param_grid=param_grid_svr,
-    cv=5,
+    cv=tscv,
     scoring='neg_mean_absolute_error',
     n_jobs=-1,
     verbose=1
@@ -211,7 +280,10 @@ best_svr_model = grid_search_svr.best_estimator_
 
 # Dự đoán và đánh giá cho SVR
 y_pred_svr = best_svr_model.predict(X_test_scaled)
-print("Dự đoán SVR: ", y_pred_svr)
+
+svr_predictions = pd.DataFrame({'Date': X_test.index, 'Prediction': y_pred_svr})
+print("Dự đoán SVR:")
+print(svr_predictions)
 
 mae_svr = mean_absolute_error(y_test, y_pred_svr)
 rmse_svr = np.sqrt(mean_squared_error(y_test, y_pred_svr))
@@ -243,10 +315,7 @@ scores = {
 models = ['Random Forest', 'XGBoost', 'KNN', 'Decision Tree', 'SVR']
 colors = ['lightblue', 'pink', 'lightgreen', 'orange', 'violet']
 
-
 results_df = results
-
-
 
 # Vẽ 3 biểu đồ
 fig, axes = plt.subplots(1, 3, figsize=(18, 5))
@@ -297,7 +366,6 @@ plt.tight_layout()
 plt.show()
 
 
-
 # Bieu do so sanh Gia Thực te với RF
 plt.figure(figsize=(13, 4))
 plt.plot(y_test[-100:].values, label='Thực tế', color='black', linewidth=2)
@@ -310,6 +378,5 @@ plt.grid(True)
 plt.tight_layout()
 plt.show()
 
-
 # Lưu mô hình vào file
-joblib.dump(best_rf_model, 'random_forest_model.pkl')
+joblib.dump(best_rf_model, 'best_rf_model.pkl')

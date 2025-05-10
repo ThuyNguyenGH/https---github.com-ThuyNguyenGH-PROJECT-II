@@ -20,8 +20,8 @@ df['date'] = pd.to_datetime(df['date'])
 df.set_index('date', inplace=True)
 
 # Lọc dữ liệu trong khoảng thời gian từ
-start_date = '2024-07-01'
-end_date = '2024-11-01'
+start_date = '2024-12-01'
+end_date = '2025-03-15'
 
 df_predict = df[(df.index >= start_date) & (df.index <= end_date)].copy() # Tạo bản sao
 
