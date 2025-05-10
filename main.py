@@ -96,6 +96,7 @@ best_rf_model = grid_search_rf.best_estimator_
 
 # Dự đoán và đánh giá cho Random Forest
 y_pred_rf = best_rf_model.predict(X_test)
+print("Dự đoán Random Forest: ", y_pred_rf)
 
 mae_rf = mean_absolute_error(y_test, y_pred_rf)
 rmse_rf = np.sqrt(mean_squared_error(y_test, y_pred_rf))
@@ -127,6 +128,7 @@ best_xgb_model = grid_search_xgb.best_estimator_
 
 # Dự đoán và đánh giá cho XGBoost
 y_pred_xgb = best_xgb_model.predict(X_test)
+print("Dự đoán XGBoost: ", y_pred_xgb)
 
 mae_xgb = mean_absolute_error(y_test, y_pred_xgb)
 rmse_xgb = np.sqrt(mean_squared_error(y_test, y_pred_xgb))
@@ -153,6 +155,8 @@ grid_search_knn.fit(X_train_knn, y_train)
 best_knn_model = grid_search_knn.best_estimator_
 
 y_pred_knn = best_knn_model.predict(X_test_knn)
+print("Dự đoán KNN: ", y_pred_knn)
+
 mae_knn = mean_absolute_error(y_test, y_pred_knn)
 rmse_knn = np.sqrt(mean_squared_error(y_test, y_pred_knn))
 r2_knn = r2_score(y_test, y_pred_knn)
@@ -175,6 +179,8 @@ grid_search_dt.fit(X_train, y_train)
 best_dt_model = grid_search_dt.best_estimator_
 
 y_pred_dt = best_dt_model.predict(X_test)
+print("Dự đoán Decision Tree: ", y_pred_dt)
+
 mae_dt = mean_absolute_error(y_test, y_pred_dt)
 rmse_dt = np.sqrt(mean_squared_error(y_test, y_pred_dt))
 r2_dt = r2_score(y_test, y_pred_dt)
@@ -205,6 +211,8 @@ best_svr_model = grid_search_svr.best_estimator_
 
 # Dự đoán và đánh giá cho SVR
 y_pred_svr = best_svr_model.predict(X_test_scaled)
+print("Dự đoán SVR: ", y_pred_svr)
+
 mae_svr = mean_absolute_error(y_test, y_pred_svr)
 rmse_svr = np.sqrt(mean_squared_error(y_test, y_pred_svr))
 r2_svr = r2_score(y_test, y_pred_svr)
@@ -270,17 +278,17 @@ y_pred_dt       # Dự đoán từ Decision Tree
 y_pred_svr      # Dự đoán từ SVR  
 
 
-# Vẽ dự đoán 100h đầu tiên của 5 mô hình
+# Vẽ dự đoán 100h sau của 5 mô hình
 plt.figure(figsize=(15, 6))
-plt.plot(y_test[:100].values, label='Thực tế', color='black', linewidth=2)
+plt.plot(y_test[-100:].values, label='Thực tế', color='black', linewidth=2)
 
-plt.plot(y_pred_rf[:100], label='Random Forest', linestyle='--')
-plt.plot(y_pred_xgb[:100], label='XGBoost', linestyle='--')
-plt.plot(y_pred_knn[:100], label='KNN', linestyle='--')
-plt.plot(y_pred_dt[:100], label='Decision Tree', linestyle='--')
-plt.plot(y_pred_svr[:100], label='SVR', linestyle='--')
+plt.plot(y_pred_rf[-100:], label='Random Forest', linestyle='--')
+plt.plot(y_pred_xgb[-100:], label='XGBoost', linestyle='--')
+plt.plot(y_pred_knn[-100:], label='KNN', linestyle='--')
+plt.plot(y_pred_dt[-100:], label='Decision Tree', linestyle='--')
+plt.plot(y_pred_svr[-100:], label='SVR', linestyle='--')
 
-plt.title('So sánh dự đoán của các mô hình (100 giờ đầu tiên)', fontsize=14)
+plt.title('So sánh dự đoán của các mô hình (100 giờ cuối)', fontsize=14)
 plt.xlabel('Thời gian (index)', fontsize=12)
 plt.ylabel('Giá BTC-USDT', fontsize=12)
 plt.legend()
@@ -292,9 +300,9 @@ plt.show()
 
 # Bieu do so sanh Gia Thực te với RF
 plt.figure(figsize=(13, 4))
-plt.plot(y_test[:100].values, label='Thực tế', color='black', linewidth=2)
-plt.plot(y_pred_rf[:100], label='Random Forest', linestyle='--')
-plt.title('So sánh dự đoán của mô hình Random Forest với Giá Thực tế (100 giờ đầu tiên)', fontsize=13)
+plt.plot(y_test[-100:].values, label='Thực tế', color='black', linewidth=2)
+plt.plot(y_pred_rf[-100:], label='Random Forest', linestyle='--')
+plt.title('So sánh dự đoán của mô hình Random Forest với Giá Thực tế (100 giờ cuối)', fontsize=13)
 plt.xlabel('Thời gian (index)', fontsize=12)
 plt.ylabel('Giá BTC-USDT', fontsize=12)
 plt.legend()
