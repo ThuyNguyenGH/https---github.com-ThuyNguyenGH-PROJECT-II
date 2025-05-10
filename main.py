@@ -76,7 +76,7 @@ print(f"Training data shape: {X_train.shape}, Test data shape: {X_test.shape}")
 # Huấn luyện mô hình Random Forest
 param_grid = {
     'n_estimators': [100, 200, 400, 600],
-    'max_depth': [5, 10, 100, None],
+    'max_depth': [5, 10, 100],
     'min_samples_split': [2, 5, 10],
     'min_samples_leaf': [1, 2, 4]
 }
