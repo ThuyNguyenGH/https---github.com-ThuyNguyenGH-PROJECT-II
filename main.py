@@ -11,16 +11,29 @@ from sklearn.neighbors import KNeighborsRegressor
 from sklearn.tree import DecisionTreeRegressor
 from sklearn.svm import SVR
 from sklearn.preprocessing import StandardScaler
+import joblib
 
 # Đường dẫn đến file dữ liệu
-data_path = Path("D:/PROJECT_II/PROJECT-II/freqtrade/user_data/data/binance/BTC_USDT-1h.feather")
+data_path = Path("D:/PROJECT_II/freqtrade/user_data/data/binance/BTC_USDT-1h.feather")
 df = pd.read_feather(data_path)
 
-print(df.head())
+print("Dữ liệu:")
+print(df.head())  # In 5 dòng đầu của dữ liệu
 
-# Chuyển cột 'date' thành kiểu datetime và đặt làm chỉ mục
+# Chuyển cột 'date' thành kiểu datetime
 df['date'] = pd.to_datetime(df['date'])
 df.set_index('date', inplace=True)
+
+# Lọc dữ liệu trong khoảng thời gian từ 1/9/2023 đến 1/5/2024
+start_date = '2023-09-01'
+end_date = '2024-05-01'
+
+df = df[(df.index >= start_date) & (df.index <= end_date)]
+
+# In ra dữ liệu sau khi lọc
+print("\nDữ liệu sau khi lọc:")
+print(df.head())  # In ra 5 dòng đầu tiên của dữ liệu đã lọc
+print(df.tail())
 
 # Tạo biến mục tiêu: giá đóng cửa của giờ tiếp theo
 df['target'] = df['close'].shift(-1)
@@ -30,11 +43,26 @@ df['ma_3'] = df['close'].rolling(window=3).mean()    # Trung bình 3 giờ
 df['ma_6'] = df['close'].rolling(window=6).mean()    # Trung bình 6 giờ
 df['std_3'] = df['close'].rolling(window=3).std()    # Độ lệch chuẩn 3 giờ
 
+# EMA
+df['ema_10'] = df['close'].ewm(span=10, adjust=False).mean()
+
+# RSI
+delta = df['close'].diff()
+gain = (delta.where(delta > 0, 0)).rolling(14).mean()
+loss = (-delta.where(delta < 0, 0)).rolling(14).mean()
+rs = gain / loss
+df['rsi_14'] = 100 - (100 / (1 + rs))
+
+# MACD
+ema_12 = df['close'].ewm(span=12, adjust=False).mean()
+ema_26 = df['close'].ewm(span=26, adjust=False).mean()
+df['macd'] = ema_12 - ema_26
+
 # Loại bỏ các dòng có giá trị NaN
 df.dropna(inplace=True)
 
 # Chọn các đặc trưng đầu vào (features) và đầu ra (target)
-features = df[['close', 'volume', 'ma_3', 'ma_6', 'std_3']]
+features = df[['close', 'volume', 'ma_3', 'ma_6', 'std_3', 'ema_10', 'rsi_14', 'macd']]
 target = df['target']
 
 # Chia dữ liệu thành train và test
@@ -42,11 +70,12 @@ X_train, X_test, y_train, y_test = train_test_split(
     features, target, test_size=0.2, shuffle=False
 )
 
+# Kiểm tra kết quả
+print(f"Training data shape: {X_train.shape}, Test data shape: {X_test.shape}")
 
 # Huấn luyện mô hình Random Forest
-# Grid Search để tìm hyperparameters tốt nhất
 param_grid = {
-    'n_estimators': [100, 300, 600],
+    'n_estimators': [100, 200, 400, 600],
     'max_depth': [5, 10, 100],
     'min_samples_split': [2, 5, 10]
 }
@@ -60,8 +89,7 @@ grid_search_rf = GridSearchCV(
     n_jobs=-1,
     verbose=1
 )
-
-# Huấn luyện mô hình với tuning hyperparameters
+# tuning hyperparameters
 grid_search_rf.fit(X_train, y_train)
 best_rf_model = grid_search_rf.best_estimator_
 
@@ -71,7 +99,6 @@ y_pred_rf = best_rf_model.predict(X_test)
 mae_rf = mean_absolute_error(y_test, y_pred_rf)
 rmse_rf = np.sqrt(mean_squared_error(y_test, y_pred_rf))
 r2_rf = r2_score(y_test, y_pred_rf)
-
 
 # Huấn luyện mô hình XGBoost
 xgb_model = xgb.XGBRegressor(random_state=42)
@@ -93,7 +120,7 @@ grid_search_xgb = GridSearchCV(
     verbose=1
 )
 
-# Huấn luyện mô hình với tuning hyperparameters
+# tuning hyperparameters
 grid_search_xgb.fit(X_train, y_train)
 best_xgb_model = grid_search_xgb.best_estimator_
 
@@ -103,7 +130,6 @@ y_pred_xgb = best_xgb_model.predict(X_test)
 mae_xgb = mean_absolute_error(y_test, y_pred_xgb)
 rmse_xgb = np.sqrt(mean_squared_error(y_test, y_pred_xgb))
 r2_xgb = r2_score(y_test, y_pred_xgb)
-
 
 # KNN Regressor
 scaler_knn = StandardScaler()
@@ -130,7 +156,6 @@ mae_knn = mean_absolute_error(y_test, y_pred_knn)
 rmse_knn = np.sqrt(mean_squared_error(y_test, y_pred_knn))
 r2_knn = r2_score(y_test, y_pred_knn)
 
-
 # Decision Tree Regressor
 dt = DecisionTreeRegressor(random_state=42)
 param_grid_dt = {
@@ -155,7 +180,6 @@ r2_dt = r2_score(y_test, y_pred_dt)
 
 
 # SVR Regressor
-# Khởi tạo StandardScaler
 scaler_svr = StandardScaler()
 X_train_scaled = scaler_svr.fit_transform(X_train)
 X_test_scaled = scaler_svr.transform(X_test)
@@ -190,7 +214,7 @@ print("Best parameters for KNN:", grid_search_knn.best_params_)
 print("Best parameters for Decision Tree:", grid_search_dt.best_params_)
 print("Best parameters for SVR:", grid_search_svr.best_params_)
 
-# kết quả đánh giá
+# kết quả đánh giá dựa trên các chỉ số
 results = pd.DataFrame({
     'Model': ['Random Forest', 'XGBoost', 'KNN', 'Decision Tree', 'SVR'],
     'MAE': [mae_rf, mae_xgb, mae_knn, mae_dt, mae_svr],
@@ -244,7 +268,6 @@ y_pred_knn      # Dự đoán từ KNN
 y_pred_dt       # Dự đoán từ Decision Tree  
 y_pred_svr      # Dự đoán từ SVR  
 
-import matplotlib.pyplot as plt
 
 # Vẽ dự đoán 100h đầu tiên của 5 mô hình
 plt.figure(figsize=(15, 6))
@@ -265,6 +288,7 @@ plt.tight_layout()
 plt.show()
 
 
+
 # Bieu do so sanh Gia Thực te với RF
 plt.figure(figsize=(13, 4))
 plt.plot(y_test[:100].values, label='Thực tế', color='black', linewidth=2)
@@ -278,4 +302,5 @@ plt.tight_layout()
 plt.show()
 
 
-
+# Lưu mô hình vào file
+joblib.dump(best_rf_model, 'random_forest_model.pkl')
