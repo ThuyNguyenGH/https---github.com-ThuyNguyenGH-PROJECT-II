@@ -7,6 +7,7 @@ from sklearn.ensemble import RandomForestRegressor
 from sklearn.metrics import mean_absolute_error, mean_squared_error, r2_score
 import xgboost as xgb
 from sklearn.model_selection import GridSearchCV
+from sklearn.model_selection import RandomizedSearchCV, cross_val_score
 from sklearn.neighbors import KNeighborsRegressor
 from sklearn.tree import DecisionTreeRegressor
 from sklearn.svm import SVR
@@ -76,26 +77,37 @@ print(f"Training data shape: {X_train.shape}, Test data shape: {X_test.shape}")
 # Huấn luyện mô hình Random Forest
 param_grid = {
     'n_estimators': [100, 200, 400, 600],
-    'max_depth': [5, 10, 100],
-    'min_samples_split': [2, 5, 10]
+    'max_depth': [10, 30, 50, 100, None],
+    'min_samples_split': [2, 5, 10],
+    'min_samples_leaf': [1, 2, 4],
+    'max_features': ['auto', 'sqrt', 'log2']
 }
 
+# RandomizedSearchCV
 rf = RandomForestRegressor(random_state=42)
-grid_search_rf = GridSearchCV(
+random_search = RandomizedSearchCV(
     estimator=rf,
-    param_grid=param_grid,
+    param_distributions=param_grid,
+    n_iter=50,  # Số lần thử nghiệm
     cv=5,
     scoring='neg_mean_absolute_error',
     n_jobs=-1,
+    random_state=42,
     verbose=1
 )
-# tuning hyperparameters
-grid_search_rf.fit(X_train, y_train)
-best_rf_model = grid_search_rf.best_estimator_
 
-# Dự đoán và đánh giá cho Random Forest
+# 3. Huấn luyện mô hình
+random_search.fit(X_train, y_train)
+best_rf_model = random_search.best_estimator_
+
+# 4. Đánh giá bằng Cross-validation trên tập train
+cv_mae_scores = cross_val_score(best_rf_model, X_train, y_train, cv=5, scoring='neg_mean_absolute_error')
+print("Cross-validated MAE (Train):", -np.mean(cv_mae_scores))
+
+# 5. Dự đoán trên tập test
 y_pred_rf = best_rf_model.predict(X_test)
 
+# 6. Đánh giá hiệu năng
 mae_rf = mean_absolute_error(y_test, y_pred_rf)
 rmse_rf = np.sqrt(mean_squared_error(y_test, y_pred_rf))
 r2_rf = r2_score(y_test, y_pred_rf)
