@@ -28,8 +28,8 @@ df['date'] = pd.to_datetime(df['date'])
 df.set_index('date', inplace=True)
 
 # Lọc dữ liệu trong khoảng thời gian từ
-start_date = '2023-11-01'
-end_date = '2024-06-01'
+start_date = '2023-02-01'
+end_date = '2024-08-01'
 
 df = df[(df.index >= start_date) & (df.index <= end_date)]
 
@@ -133,7 +133,7 @@ print(f"Training data shape: {X_train.shape}, Test data shape: {X_test.shape}")
 # Huấn luyện mô hình Random Forest
 param_grid = {
     'n_estimators': [100, 200, 400, 600],
-    'max_depth': [5, 10, 100],
+    'max_depth': [5, 10, 20, None],
     'min_samples_split': [2, 5, 10],
     'min_samples_leaf': [1, 2, 4]
 }
